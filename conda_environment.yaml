@@ -1,0 +1,17 @@
+name: camera-calibration
+channels:
+  - pytorch
+  - conda-forge
+  - nvidia
+dependencies:
+  - python=3.9
+  - pip=23.3.1
+  - pytorch=2.1.0
+  - cuda-toolkit=12.1
+  - pip:
+    - pyrealsense2==2.54.2.5684
+    - klampt
+    - pypose
+    - ur-rtde
+    - numpy
+    - sklearn

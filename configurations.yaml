@@ -1,0 +1,33 @@
+robot:
+  urdf: "..."
+  ip_address: "192.168.0.100"
+
+camera:
+  serial_number: "f0220579"
+
+  depth_stream:
+    width: 1024
+    height: 768
+    fps: 30
+
+  color_stream:
+    width: 1280
+    height: 720
+    fps: 30
+
+data_collection:
+  # unit: meter, frame: camera frame
+  # points with depth (z) value greater than `cutoff_depth` will be ignore.
+  # otherwise, provide a callble function to filter points.
+  cutoff_depth: 0.7
+
+  # number of points to be sampled on the robot
+  num_points_on_robot: 10000 
+
+initial_registration:
+  # unit: meter, parameter in o3d.pipelines.registration.registration_icp
+  icp_max_correspondence_distance: 0.03
+
+local_refinement:
+  # unit: meter, distance for error to be considered in pcd registration
+  pcd_registration_influence_distance: 0.02
