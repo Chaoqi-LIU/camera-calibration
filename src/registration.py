@@ -30,6 +30,7 @@ def pick_correspondences(
 def register(
     source_pcd: o3d.geometry.PointCloud,
     target_pcd: o3d.geometry.PointCloud,
+    init_guess: Optional[np.ndarray] = None,
     max_correspondence_distance: Optional[float] = 0.03,
 ) -> np.ndarray:
     """
@@ -37,34 +38,36 @@ def register(
 
     :param source_pcd: Point cloud of captured object.
     :param target_pcd: Point cloud of model object.
+    :param init_guess: Initial guess for the transformation matrix.
     :param max_correspondence_distance: Distance threshold for correspondences.
     :return: 4x4 transformation matrix, from captured_pcd to model_pcd.
     """
 
-    # manually select correspondences
-    source_points_indices = pick_correspondences(source_pcd)
-    target_points_indices = pick_correspondences(target_pcd)
-    if (
-        (not len(source_points_indices) >= 3) or
-        (len(source_points_indices) != len(target_points_indices))
-    ): 
-        raise RuntimeError(
-            "Correspondences not selected correctly. "
-            "Please select at least three correspondences."
+    if init_guess is None:
+        # manually select correspondences
+        source_points_indices = pick_correspondences(source_pcd)
+        target_points_indices = pick_correspondences(target_pcd)
+        if (
+            (not len(source_points_indices) >= 3) or
+            (len(source_points_indices) != len(target_points_indices))
+        ): 
+            raise RuntimeError(
+                "Correspondences not selected correctly. "
+                "Please select at least three correspondences."
+            )
+        
+        # construct initial guess
+        p2p = o3d.pipelines.registration.TransformationEstimationPointToPoint()
+        init_guess = p2p.compute_transformation(
+            source_pcd,
+            target_pcd,
+            o3d.utility.Vector2iVector(
+                np.stack([
+                    source_points_indices,
+                    target_points_indices
+                ], axis=1)
+            )
         )
-    
-    # construct initial guess
-    p2p = o3d.pipelines.registration.TransformationEstimationPointToPoint()
-    init_guess = p2p.compute_transformation(
-        source_pcd,
-        target_pcd,
-        o3d.utility.Vector2iVector(
-            np.stack([
-                source_points_indices,
-                target_points_indices
-            ], axis=1)
-        )
-    )
 
     # ICP registration
     reg_p2p = o3d.pipelines.registration.registration_icp(
