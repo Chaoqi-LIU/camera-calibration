@@ -1,4 +1,5 @@
 import os
+import torch
 import open3d as o3d
 import yaml
 from klampt import WorldModel
@@ -6,6 +7,19 @@ from klampt.io import open3d_convert
 from klampt.math import se3
 import numpy as np
 from typing import List, Optional, Sequence
+
+
+
+def get_device(use_gpu: bool) -> torch.device:
+    if use_gpu:
+        if torch.cuda.is_available():
+            return torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            return torch.device('mps')
+        else:
+            return torch.device('cpu')
+    else:
+        return torch.device('cpu')
 
 
 
@@ -20,7 +34,8 @@ def fuse_pcd(
     """
     pcd = o3d.geometry.PointCloud()
     for p in pcds:
-        pcd += p
+        if p is not None:
+            pcd += p
     return pcd
 
 
@@ -74,6 +89,8 @@ def sample_robot_surface_points(
     :param robot_configuration: Configuration of the robot.
     :param num_points: Number of points to sample.
     """
+    if not os.path.exists(robot_urdf):
+        raise FileNotFoundError(f"Robot description not found: {robot_urdf}")
 
     # initialize robot
     world = WorldModel()
@@ -83,7 +100,7 @@ def sample_robot_surface_points(
 
     # distribute points on each link proportional to the surface area
     link_meshes = []
-    link_mesh_areas = np.empty(robot.numLinks())
+    link_mesh_areas = []
     for link_idx in range(robot.numLinks()):
         link = robot.link(link_idx)
         link_geom = link.geometry()
@@ -95,14 +112,18 @@ def sample_robot_surface_points(
         link_mesh = open3d_convert.to_open3d(link_geom.getTriangleMesh())
         link_mesh.transform(np.asarray(se3.homogeneous(link.getTransform())))
         link_meshes.append(link_mesh)
-        link_mesh_areas[link_idx] = link_mesh.get_surface_area()
+        link_mesh_areas.append(link_mesh.get_surface_area())
+        if link_mesh_areas[-1] <= 0:
+            raise ValueError(f"Link {link_idx} has nonpositive surface area")
 
     # sample points on each link
+    link_mesh_areas = np.asarray(link_mesh_areas)
     num_points_per_link = num_points * link_mesh_areas / link_mesh_areas.sum()
-    
+    num_points_per_link = np.ceil(num_points_per_link).astype(int)
+
     pcd = fuse_pcd([
-        link_meshes[i].sample_points_uniformly(int(np.ceil(num_points_per_link[i])))
-        for i in range(len(link_meshes))
+        mesh.sample_points_uniformly(nsample) if nsample > 0 else None 
+        for (mesh, nsample) in zip(link_meshes, num_points_per_link)
     ])
     
     # remove overhead points

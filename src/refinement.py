@@ -1,3 +1,4 @@
+import sys
 import open3d as o3d
 import numpy as np
 import pypose as pp
@@ -6,13 +7,16 @@ import sklearn.neighbors
 import torch
 from typing import Optional, List, Tuple
 
+from .utils import get_device
+
 
 
 def pcd_registration_loss(
     source_pcd: o3d.geometry.PointCloud,
     target_pcd: o3d.geometry.PointCloud,
     predicted_transform: pp.se3,
-    distance_threshold: Optional[float] = 0.02,
+    distance_threshold: float = 0.02,
+    device: torch.device = torch.device('cpu'),
 ) -> torch.Tensor:
     """
     Compute point-to-point distance between source_pcd and target_pcd
@@ -22,24 +26,25 @@ def pcd_registration_loss(
     :param target_pcd: Point cloud of model object.
     :param predicted_transform: Predicted SE(3)
     :param distance_threshold: Distance threshold for correspondences.
+    :param device: Device to use for computation.
     :return: Loss value.
     """
     
-    source_points = torch.from_numpy(np.asarray(source_pcd.points))
-    target_points = torch.from_numpy(np.asarray(target_pcd.points))
+    source_points = torch.from_numpy(np.asarray(source_pcd.points)).to(device)
+    target_points = torch.from_numpy(np.asarray(target_pcd.points)).to(device)
     
     source_points = pp.Exp(predicted_transform) @ source_points
 
     knn = sklearn.neighbors.NearestNeighbors(n_neighbors=1, algorithm='auto')
-    knn.fit(target_points.detach().numpy())
+    knn.fit(target_points.detach().cpu().numpy())
 
-    dist, idx = knn.kneighbors(source_points.detach().numpy())
-    idx = idx.view(-1)
+    dist, idx = knn.kneighbors(source_points.detach().cpu().numpy())
+    idx = idx.reshape(-1)
 
-    to_keep = dist < distance_threshold
+    to_keep = np.where(dist < distance_threshold)[0]
     return torch.mean(torch.linalg.norm(
-        source_pcd[to_keep] - 
-        target_pcd[idx[to_keep]], 
+        source_points[to_keep] - 
+        target_points[idx[to_keep]], 
     dim=1), dim=0)
 
 
@@ -49,9 +54,10 @@ def optimize_registration(
     target_pcds: List[o3d.geometry.PointCloud],
     initial_transform: np.ndarray,
     distance_threshold: Optional[float] = 0.02,
-    max_iter: Optional[int] = 1e4,
-    lr: Optional[float] = 1e-5,
+    max_iter: Optional[int] = 100,
+    lr: Optional[float] = 1e-4,
     stop_threshold: Optional[float] = 0.01,
+    use_gpu: bool = True,
 ) -> Tuple[np.ndarray, float]:
     """
     Optimize SE(3) transform to minimize point-to-point distance between
@@ -64,26 +70,31 @@ def optimize_registration(
     :param max_iter: Maximum number of iterations.
     :param lr: Learning rate.
     :param stop_threshold: Stop optimization when loss is below this value.
+    :param use_gpu: Whether to use GPU for optimization.
     :return: Optimized SE(3) transform, minimum loss.
     """
 
-    transform = pp.Log(pp.mat2SE3(initial_transform))
+    device = get_device(use_gpu)
+
+    transform = pp.Log(pp.mat2SE3(initial_transform)).to(device)
     transform.requires_grad = True
 
     optimizer = torch.optim.Adam([transform], lr=lr)
 
     min_loss = float('inf')
-    for _ in range(max_iter):
+    for i in range(max_iter):
+        sys.stdout.write(f"\rrefinement:: iteration: {i+1}/{max_iter}; loss: {min_loss:.6f}")
+        sys.stdout.flush()
 
         # compute loss
-        loss = sum(
-            pcd_registration_loss(
+        loss: torch.Tensor = 0.
+        for source_pcd, target_pcd in zip(source_pcds, target_pcds):
+            loss += pcd_registration_loss(
                 source_pcd, target_pcd,
                 predicted_transform=transform,
                 distance_threshold=distance_threshold,
+                device=device
             )
-            for source_pcd, target_pcd in zip(source_pcds, target_pcds)
-        )
 
         min_loss = min(min_loss, loss.item())
 
@@ -96,4 +107,5 @@ def optimize_registration(
         loss.backward()
         optimizer.step()
 
-    return pp.matrix(pp.Exp(transform)).detach().numpy(), min_loss
+    print()
+    return pp.matrix(pp.Exp(transform)).detach().cpu().numpy(), min_loss

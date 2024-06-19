@@ -1,7 +1,7 @@
 import open3d as o3d
 from typing import List, Callable, Tuple
 
-from utils import sample_robot_surface_points
+from .utils import sample_robot_surface_points
 
 
 
@@ -31,8 +31,8 @@ def collect_pcds(
 
         # user feedback
         while (user_str := input(
-            "Press 'c' to capture a point cloud, 'q' to quit: "
-        ).strip().lower()) not in ['c', 'q']:
+            "Press `[c]` to capture a point cloud, `q` to quit data collection: "
+        ).strip().lower()) not in ['', 'c', 'q']:
             print("Invalid input")
 
         # quit data collection
@@ -53,12 +53,12 @@ def collect_pcds(
 
         # user feedback
         while (user_str := input(
-            "Press 'y' to accept, 'n' to reject: "
-        ).strip().lower()) not in ['y', 'n']: 
+            "Press `[y]` to accept, `n` to reject: "
+        ).strip().lower()) not in ['', 'y', 'n']: 
             print("Invalid input")
 
         # store if accepted
-        if user_str == 'y':
+        if user_str != 'n':
             observed_pcds.append(observed_pcd)
             robot_pcds.append(robot_pcd)
 

@@ -31,7 +31,7 @@ def register(
     source_pcd: o3d.geometry.PointCloud,
     target_pcd: o3d.geometry.PointCloud,
     init_guess: Optional[np.ndarray] = None,
-    max_correspondence_distance: Optional[float] = 0.03,
+    max_correspondence_distance: float = 0.03,
 ) -> np.ndarray:
     """
     ICP algorithm to align captured_pcd to model_pcd.
@@ -44,17 +44,24 @@ def register(
     """
 
     if init_guess is None:
+
         # manually select correspondences
-        source_points_indices = pick_correspondences(source_pcd)
-        target_points_indices = pick_correspondences(target_pcd)
-        if (
-            (not len(source_points_indices) >= 3) or
-            (len(source_points_indices) != len(target_points_indices))
-        ): 
-            raise RuntimeError(
-                "Correspondences not selected correctly. "
-                "Please select at least three correspondences."
-            )
+        while True:
+            source_points_indices = pick_correspondences(source_pcd)
+            target_points_indices = pick_correspondences(target_pcd)
+            if (
+                (not len(source_points_indices) >= 3) or
+                (len(source_points_indices) != len(target_points_indices))
+            ): 
+                print(
+                    "Correspondences not selected correctly. "
+                    "Please select at least three correspondences. \n"
+                    f"{len(source_points_indices)} source points selected, "
+                    f"{len(target_points_indices)} target points selected. \n"
+                    "Please try again. \n"
+                )
+            else:
+                break
         
         # construct initial guess
         p2p = o3d.pipelines.registration.TransformationEstimationPointToPoint()

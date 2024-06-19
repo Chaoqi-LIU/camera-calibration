@@ -13,7 +13,7 @@ class Camera:
     def __init__(self, configuration: Dict):
         self.pipeline = rs.pipeline()
         config = rs.config()
-        config.enable_device(configuration['ip_address'])
+        config.enable_device(configuration['serial_number'])
 
         # #TODO: decide a better resolution for both and perhaps align?
         config.enable_stream(
@@ -33,7 +33,6 @@ class Camera:
         self.numpix = configuration['depth_stream']['width'] \
                     * configuration['depth_stream']['height']
 
-        print(f"starting ... ")
         profile = self.pipeline.start(config)
         depth_sensor = profile.get_device().first_depth_sensor()
         rgb_sensor = profile.get_device().query_sensors()[1]
@@ -67,10 +66,8 @@ class Camera:
         self.depth_scale = depth_sensor.get_depth_scale()
         self.update_intrinsics()
 
-        print("Waiting for auto-exposure adjustment...")
-        for t in range(5):
+        for _ in range(5):
             self.pipeline.wait_for_frames()
-        print('L515 activated with specified parameters')
 
 
     def update_intrinsics(self):
@@ -154,8 +151,7 @@ class Camera:
 
     def close(self):
         self.pipeline.stop()
-        print("L515 deactivated")
-    
+
     
     def cam2pix(self, points: np.ndarray) -> np.ndarray:
         """
