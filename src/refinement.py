@@ -5,7 +5,7 @@ import pypose as pp
 import sklearn
 import sklearn.neighbors
 import torch
-from typing import Optional, List, Tuple
+from typing import List, Tuple
 
 from .utils import get_device
 
@@ -53,10 +53,10 @@ def optimize_registration(
     source_pcds: List[o3d.geometry.PointCloud],
     target_pcds: List[o3d.geometry.PointCloud],
     initial_transform: np.ndarray,
-    distance_threshold: Optional[float] = 0.02,
-    max_iter: Optional[int] = 100,
-    lr: Optional[float] = 1e-4,
-    stop_threshold: Optional[float] = 0.01,
+    distance_threshold: float = 0.02,
+    max_iter: int = 100,
+    lr: float = 1e-4,
+    stop_threshold: float = 0.01,
     use_gpu: bool = True,
 ) -> Tuple[np.ndarray, float]:
     """

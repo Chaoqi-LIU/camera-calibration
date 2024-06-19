@@ -6,7 +6,7 @@ from klampt import WorldModel
 from klampt.io import open3d_convert
 from klampt.math import se3
 import numpy as np
-from typing import List, Optional, Sequence
+from typing import List, Sequence
 
 
 
@@ -80,7 +80,7 @@ def load_yaml(file_path: str) -> dict:
 def sample_robot_surface_points(
     robot_urdf: str,
     robot_configuration: Sequence[float],
-    num_points: Optional[int] = 10000,
+    num_points: int = 10000,
 ) -> o3d.geometry.PointCloud:
     """
     Uniformly sample points on the surface of a robot.
