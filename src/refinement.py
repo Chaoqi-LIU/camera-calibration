@@ -54,8 +54,8 @@ def optimize_registration(
     target_pcds: List[o3d.geometry.PointCloud],
     initial_transform: np.ndarray,
     distance_threshold: float = 0.02,
-    max_iter: int = 100,
-    lr: float = 1e-4,
+    max_iter: int = 200,
+    lr: float = 0.001,
     stop_threshold: float = 0.01,
     use_gpu: bool = True,
 ) -> Tuple[np.ndarray, float]:
@@ -82,8 +82,12 @@ def optimize_registration(
     optimizer = torch.optim.Adam([transform], lr=lr)
 
     min_loss = float('inf')
+    loss = 0.
     for i in range(max_iter):
-        sys.stdout.write(f"\rrefinement:: iteration: {i+1}/{max_iter}; loss: {min_loss:.6f}")
+        sys.stdout.write(
+            f"\rrefinement:: iteration: {i+1}/{max_iter}; "
+            f"loss: {loss:.6f}, min loss: {min_loss:.6f}"
+        )
         sys.stdout.flush()
 
         # compute loss
@@ -95,6 +99,7 @@ def optimize_registration(
                 distance_threshold=distance_threshold,
                 device=device
             )
+        loss /= len(source_pcds)
 
         min_loss = min(min_loss, loss.item())
 
