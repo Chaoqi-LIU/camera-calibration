@@ -62,4 +62,7 @@ def collect_pcds(
             observed_pcds.append(observed_pcd)
             robot_pcds.append(robot_pcd)
 
+    if len(observed_pcds) == 0:
+        raise ValueError("No data collected")
+
     return observed_pcds, robot_pcds

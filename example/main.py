@@ -1,6 +1,9 @@
 import numpy as np
-from src.utils import load_yaml
-from src.calibration import calibrate_camera
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from calibrator.utils import load_yaml
+from calibrator.calibration import calibrate_camera
 
 from camera import Camera
 
